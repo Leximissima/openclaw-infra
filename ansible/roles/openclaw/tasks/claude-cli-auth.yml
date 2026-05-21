@@ -1,13 +1,22 @@
 ---
 # Install and authenticate the Claude CLI for the claude-cli backend.
 #
-# The claude CLI (@anthropic-ai/claude-code) is installed as a global npm
-# dependency of OpenClaw. This task ensures:
-#   1. The binary is accessible via /usr/local/bin/claude
+# The claude CLI (@anthropic-ai/claude-code) is the agent backend OpenClaw
+# spawns for every turn. This task ensures:
+#   1. The CLI is installed globally via npm and on PATH at /usr/local/bin/claude
 #   2. OAuth credentials are written to ~/.claude/.credentials.json
 #
 # Credentials (access + refresh tokens) are passed from Pulumi via provision.sh.
 # The claude CLI auto-refreshes the access token using the refresh token.
+
+- name: Install claude CLI (@anthropic-ai/claude-code) — the agent backend
+  community.general.npm:
+    name: "@anthropic-ai/claude-code"
+    version: "{{ openclaw_mcp_adapter.claude_code_version }}"
+    global: true
+    state: present
+  environment:
+    PATH: "/home/ubuntu/.npm-global/bin:{{ ansible_facts['env']['PATH'] }}"
 
 - name: Check if claude CLI is available
   ansible.builtin.stat:
