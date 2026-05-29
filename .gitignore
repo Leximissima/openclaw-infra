@@ -55,3 +55,6 @@ ansible/group_vars/openclaw.yml
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Documentation
+.obsidian/

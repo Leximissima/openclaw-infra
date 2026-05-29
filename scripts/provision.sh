@@ -45,11 +45,29 @@ else
         agent_ids_str=$(pulumi config get agentIds 2>/dev/null || echo "")
     fi
 
-    # Required
-    export PROVISION_GATEWAY_TOKEN=$(pulumi stack output openclawGatewayToken --show-secrets) || {
-        echo "ERROR: Failed to read gateway token from Pulumi. Are you logged in? (pulumi login)"
+    # Required. Read in order: stack output (normal path) → pulumi config
+    # (manual override, e.g. when state is encrypted under a lost passphrase) →
+    # local paired-CLI cache. The first non-empty wins.
+    PROVISION_GATEWAY_TOKEN=$(pulumi stack output openclawGatewayToken --show-secrets 2>/dev/null || echo "")
+    if [ -z "$PROVISION_GATEWAY_TOKEN" ]; then
+        PROVISION_GATEWAY_TOKEN=$(pulumi config get openclawGatewayToken 2>/dev/null || echo "")
+    fi
+    if [ -z "$PROVISION_GATEWAY_TOKEN" ] && [ -f "$HOME/.openclaw/openclaw.json" ]; then
+        PROVISION_GATEWAY_TOKEN=$(jq -r '.gateway.remote.token // empty' "$HOME/.openclaw/openclaw.json" 2>/dev/null || echo "")
+    fi
+    if [ -z "$PROVISION_GATEWAY_TOKEN" ]; then
+        echo "ERROR: Could not read gateway token. Tried (in order):"
+        echo "  1. pulumi stack output openclawGatewayToken --show-secrets"
+        echo "  2. pulumi config get openclawGatewayToken"
+        echo "  3. \$HOME/.openclaw/openclaw.json -> .gateway.remote.token"
+        echo ""
+        echo "If the Pulumi state is encrypted with a lost passphrase, set the token"
+        echo "manually after retrieving it from the VPS:"
+        echo "  ssh ubuntu@<host> 'jq -r .gateway.remote.token ~/.openclaw/openclaw.json'"
+        echo "  pulumi config set openclawGatewayToken --secret <token>"
         exit 1
-    }
+    fi
+    export PROVISION_GATEWAY_TOKEN
     export PROVISION_CLAUDE_SETUP_TOKEN=$(pulumi config get claudeSetupToken 2>/dev/null || echo "")
     export PROVISION_CLAUDE_OAUTH_CREDENTIALS=$(pulumi config get claudeOAuthCredentials 2>/dev/null || echo "")
 
